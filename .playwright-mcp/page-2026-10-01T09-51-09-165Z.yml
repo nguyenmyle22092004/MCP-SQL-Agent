@@ -1,0 +1,33 @@
+- generic [ref=e2]:
+  - complementary "Conversation navigation" [ref=e3]:
+    - generic [ref=e8]:
+      - generic [ref=e9]: House PriceSQL Agent
+      - generic [ref=e10]: Property intelligence
+    - button "New conversation" [ref=e11] [cursor=pointer]
+    - generic [ref=e14]: Current conversation
+    - generic [ref=e15]: New property question
+    - generic [ref=e17]:
+      - strong [ref=e18]: Grounded in your data.
+      - text: Answers are checked against live SQL results before they appear here.
+  - main [ref=e19]:
+    - generic [ref=e20]:
+      - generic [ref=e21]: Property data assistant
+      - generic [ref=e22]: SQL evidence enabled
+    - region "Chat conversation" [ref=e24]:
+      - generic [ref=e25]:
+        - generic [ref=e26]: House market data
+        - heading "Ask a question. Get the numbers." [level=1] [ref=e27]: Ask a question.Get the numbers.
+        - paragraph [ref=e28]: Explore the house-price dataset in plain language. Every database answer is backed by a real query.
+        - generic [ref=e29]:
+          - button "How many 3-bedroom houses are there?" [ref=e30] [cursor=pointer]
+          - button "Average price of 3-bedroom houses" [ref=e34] [cursor=pointer]
+          - button "Which city has the highest average price?" [ref=e38] [cursor=pointer]
+          - button "Top 5 expensive homes with 4+ bedrooms" [ref=e42] [cursor=pointer]
+      - generic [ref=e47]:
+        - generic [ref=e48]:
+          - textbox "Ask about house prices" [ref=e49]:
+            - /placeholder: Ask about prices, bedrooms, cities...
+          - button "Send message" [ref=e50] [cursor=pointer]
+        - generic [ref=e54]:
+          - generic [ref=e55]: Enter to send · Shift + Enter for a new line
+          - generic [ref=e56]: Answers cite SQL validation status

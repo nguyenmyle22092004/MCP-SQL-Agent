@@ -1,0 +1,12 @@
+[
+  {"id": "Q1", "question": "How many houses have 3 bedrooms?", "expected_tool": "execute_sql"},
+  {"id": "Q2", "question": "What are the prices of the 3-bedroom houses?", "expected_tool": "execute_sql"},
+  {"id": "Q3", "question": "What is the average price of 3-bedroom houses?", "expected_tool": "execute_sql"},
+  {"id": "Q4", "question": "Which city has the highest average house price?", "expected_tool": "execute_sql"},
+  {"id": "Q5", "question": "What is the most expensive house?", "expected_tool": "execute_sql"},
+  {"id": "Q6", "question": "What is the cheapest 4-bedroom house?", "expected_tool": "execute_sql"},
+  {"id": "Q7", "question": "How many houses cost more than $1 million?", "expected_tool": "execute_sql"},
+  {"id": "Q8", "question": "What is the average price per square foot by city?", "expected_tool": "execute_sql"},
+  {"id": "Q9", "question": "How many houses were built after 2015?", "expected_tool": "execute_sql"},
+  {"id": "Q10", "question": "What are the top 5 most expensive houses with at least 4 bedrooms?", "expected_tool": "execute_sql"}
+]

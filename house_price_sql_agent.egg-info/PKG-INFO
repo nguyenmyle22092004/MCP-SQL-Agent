@@ -1,0 +1,24 @@
+Metadata-Version: 2.4
+Name: house-price-sql-agent
+Version: 0.1.0
+Summary: House Price SQL Agent with PostgreSQL, MCP, LangGraph, and tracing
+Requires-Python: >=3.11
+Description-Content-Type: text/markdown
+Requires-Dist: fastapi>=0.111.0
+Requires-Dist: uvicorn[standard]>=0.30.0
+Requires-Dist: pydantic>=2.7.0
+Requires-Dist: pydantic-settings>=2.2.0
+Requires-Dist: python-dotenv>=1.0.1
+Requires-Dist: sqlalchemy>=2.0.30
+Requires-Dist: psycopg[binary]>=3.1.19
+Requires-Dist: langgraph>=0.2.52
+Requires-Dist: langchain>=0.3.4
+Requires-Dist: langchain-openai>=0.1.20
+Requires-Dist: mcp>=1.6.0
+Requires-Dist: httpx>=0.27.0
+Requires-Dist: pytest>=8.2.0
+Requires-Dist: pytest-asyncio>=0.23.0
+Requires-Dist: python-multipart>=0.0.9
+Provides-Extra: dev
+Requires-Dist: ruff>=0.5.0; extra == "dev"
+Requires-Dist: mypy>=1.10.0; extra == "dev"

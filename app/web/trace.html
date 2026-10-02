@@ -1,0 +1,242 @@
+<!doctype html>
+<html lang="en">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <meta name="theme-color" content="#f2f3ed">
+  <title>Trace detail | House Price SQL Agent</title>
+  <style>
+    :root { color-scheme: light; --paper:#f2f3ed; --white:#fffefa; --ink:#202923; --muted:#737d73; --line:#dce1d8; --green:#24563d; --deep:#183f2c; --lime:#d7e778; --coral:#d87858; --red:#a13e31; --red-bg:#fae9e3; --gold:#987126; --gold-bg:#f8efd8; --mono:Consolas,"Cascadia Code",monospace; }
+    * { box-sizing:border-box; }
+    body { margin:0; min-width:320px; color:var(--ink); background:var(--paper); font-family:"Aptos","Segoe UI",sans-serif; }
+    a { color:var(--green); text-underline-offset:3px; }
+    .top { display:flex; min-height:62px; align-items:center; justify-content:space-between; gap:16px; padding:0 max(22px,calc((100vw - 1220px)/2)); border-bottom:1px solid var(--line); background:var(--white); }
+    .brand { display:flex; align-items:center; gap:10px; color:var(--ink); text-decoration:none; font:700 13px Georgia,serif; }
+    .mark { display:grid; width:30px; height:30px; place-items:center; border-radius:5px; color:var(--lime); background:var(--deep); font:16px Georgia,serif; }
+    .back { font-size:12px; }
+    main { width:min(1180px,100%); margin:auto; padding:34px 24px 70px; }
+    .eyebrow { margin:0 0 8px; color:var(--green); font:10px var(--mono); text-transform:uppercase; }
+    h1 { margin:0; font:400 34px/1.15 Georgia,"Times New Roman",serif; overflow-wrap:anywhere; }
+    .lede { margin:9px 0 0; color:var(--muted); font-size:13px; }
+    .status { display:inline-flex; min-height:25px; align-items:center; gap:7px; padding:4px 9px; border-radius:3px; font:11px var(--mono); text-transform:uppercase; }
+    .status::before { width:7px; height:7px; border-radius:50%; background:currentColor; content:""; }
+    .status.pass { color:var(--green); background:#e5efdf; }
+    .status.failed { color:var(--red); background:var(--red-bg); }
+    .status.unsupported { color:var(--gold); background:var(--gold-bg); }
+    .status.pending { color:var(--muted); background:#eceee8; }
+    .hero-row { display:flex; align-items:flex-start; justify-content:space-between; gap:20px; }
+    .summary { display:grid; grid-template-columns:minmax(0,1.5fr) minmax(180px,.7fr) minmax(160px,.7fr); margin-top:25px; border-top:1px solid var(--line); border-bottom:1px solid var(--line); background:rgb(255 254 250 / 70%); }
+    .summary-item { min-width:0; padding:15px 18px; border-right:1px solid var(--line); }
+    .summary-item:last-child { border-right:0; }
+    .label { display:block; margin-bottom:7px; color:var(--muted); font:10px var(--mono); text-transform:uppercase; }
+    .value { font-size:12px; line-height:1.55; overflow-wrap:anywhere; }
+    .mono { font-family:var(--mono); font-size:11px; }
+    .question { font-size:14px; }
+    .layout { display:grid; grid-template-columns:minmax(0,1.35fr) minmax(300px,.85fr); align-items:start; gap:30px; margin-top:32px; }
+    h2 { margin:0; font:400 21px Georgia,serif; }
+    .section-head { display:flex; align-items:baseline; justify-content:space-between; gap:12px; margin-bottom:16px; }
+    .count { color:var(--muted); font:10px var(--mono); }
+    .timeline { position:relative; padding-left:22px; }
+    .timeline::before { position:absolute; top:8px; bottom:7px; left:6px; width:1px; background:var(--line); content:""; }
+    .event { position:relative; margin:0 0 12px; padding:13px 15px; border:1px solid var(--line); border-radius:5px; background:var(--white); }
+    .event::before { position:absolute; top:17px; left:-21px; width:9px; height:9px; border:2px solid var(--paper); border-radius:50%; background:#93a394; content:""; }
+    .event.tool::before { background:var(--coral); }
+    .event.validation::before { background:var(--green); }
+    .event-top { display:flex; align-items:flex-start; justify-content:space-between; gap:12px; }
+    .event-title { margin:0; font-size:12px; font-weight:650; }
+    .event-type { color:var(--muted); font:9px var(--mono); overflow-wrap:anywhere; text-align:right; }
+    .event-data { margin:10px 0 0; padding-top:9px; border-top:1px solid #edf0e9; color:#465147; font:11px/1.6 var(--mono); white-space:pre-wrap; overflow-wrap:anywhere; }
+    .sql { overflow:auto; margin:10px 0 0; padding:12px 13px; border-left:2px solid var(--lime); border-radius:0 4px 4px 0; color:#e8eedc; background:#22392d; font:11px/1.65 var(--mono); white-space:pre-wrap; overflow-wrap:anywhere; }
+    .side-section { margin-bottom:28px; }
+    .validation-panel { margin:0 0 22px; padding:15px 16px; border-left:3px solid var(--green); background:#e8efe2; }
+    .validation-panel.failed { border-color:var(--red); background:var(--red-bg); }
+    .validation-panel.unsupported { border-color:#c19732; background:var(--gold-bg); }
+    .validation-panel p { margin:9px 0 0; color:#495349; font-size:12px; line-height:1.55; overflow-wrap:anywhere; }
+    .evidence { margin:0 0 20px; border-top:1px solid var(--line); background:var(--white); }
+    .evidence-head { padding:13px 14px; border-bottom:1px solid var(--line); }
+    .evidence-head strong { display:block; font:600 12px var(--mono); overflow-wrap:anywhere; }
+    .evidence-head span { display:block; margin-top:5px; color:var(--muted); font:10px var(--mono); overflow-wrap:anywhere; }
+    .table-wrap { overflow-x:auto; }
+    table { width:100%; border-collapse:collapse; font-size:11px; }
+    th,td { padding:9px 11px; border-bottom:1px solid #e8ebe4; text-align:left; vertical-align:top; white-space:nowrap; }
+    th { color:var(--muted); background:#f4f5ef; font:9px var(--mono); text-transform:uppercase; }
+    td { font-family:var(--mono); }
+    .tool-call { padding:12px 14px; border-bottom:1px solid var(--line); background:var(--white); }
+    .tool-call:last-child { border-bottom:0; }
+    .tool-name { font:600 11px var(--mono); }
+    .tool-meta { margin-top:5px; color:var(--muted); font:10px var(--mono); overflow-wrap:anywhere; }
+    .empty { padding:13px 0; color:var(--muted); font-size:12px; }
+    .load-error { margin-top:30px; padding:16px; border-left:3px solid var(--red); background:var(--red-bg); color:var(--red); font-size:13px; }
+    @media(max-width:820px) { .layout { grid-template-columns:1fr; gap:25px; } .summary { grid-template-columns:1fr 1fr; } .summary-item:first-child { grid-column:1/-1; border-bottom:1px solid var(--line); } .summary-item:nth-child(2) { border-bottom:0; } }
+    @media(max-width:520px) { .top { min-height:56px; padding:0 16px; } main { padding:27px 16px 50px; } h1 { font-size:28px; } .hero-row { flex-direction:column; } .summary { grid-template-columns:1fr; } .summary-item,.summary-item:first-child { grid-column:auto; border-right:0; border-bottom:1px solid var(--line); } .summary-item:last-child { border-bottom:0; } .event { padding:12px; } }
+    @media(prefers-reduced-motion:reduce) { *,*::before,*::after { scroll-behavior:auto!important; animation-duration:.01ms!important; transition-duration:.01ms!important; } }
+  </style>
+</head>
+<body>
+  <header class="top">
+    <a class="brand" href="/"><span class="mark" aria-hidden="true">⌂</span><span>House Price SQL Agent</span></a>
+    <a class="back" href="/">Back to chat</a>
+  </header>
+  <main>
+    <div id="page-content" aria-live="polite"><p class="empty">Loading trace…</p></div>
+  </main>
+  <script>
+    (() => {
+      const root = document.getElementById("page-content");
+      const traceId = decodeURIComponent(location.pathname.split("/")[2] || "");
+      const labels = {
+        MEMORY_LOAD_START: "Loading conversation memory",
+        MEMORY_LOAD_END: "Conversation memory loaded",
+        AGENT_START: "Agent started",
+        AGENT_END: "Agent finished planning",
+        LLM_CALL_START: "Model request started",
+        LLM_CALL_END: "Model response received",
+        MCP_CALL_START: "MCP tool called",
+        SQL_EXECUTION: "SQL executed",
+        SQL_RESULT: "Database result received",
+        EVIDENCE_CREATED: "Evidence recorded",
+        ANSWER_VALIDATION_START: "Answer validation started",
+        ANSWER_VALIDATION_END: "Answer validation finished",
+        MEMORY_SAVE: "Conversation memory saved",
+      };
+      const element = (tag, className, text) => {
+        const node = document.createElement(tag);
+        if (className) node.className = className;
+        if (text !== undefined) node.textContent = text;
+        return node;
+      };
+      const pretty = (value) => JSON.stringify(value, null, 2);
+      const cellText = (value) => value === null ? "null" : String(value);
+
+      function renderSummary(trace) {
+        const header = element("div", "hero-row");
+        const title = element("div");
+        title.append(element("p", "eyebrow", "Request trace"), element("h1", "", trace.trace_id || traceId), element("p", "lede", "A readable record of planning, tool execution, evidence, and answer checks."));
+        const status = String(trace.validation?.status || "pending").toLowerCase();
+        header.append(title, element("span", `status ${status}`, status));
+        const summary = element("section", "summary");
+        const values = [
+          ["Question", trace.request?.message || "No request text recorded", "question"],
+          ["User", trace.request?.user_id || "Unknown", "mono"],
+          ["Conversation", trace.request?.conversation_id || "Unknown", "mono"],
+        ];
+        values.forEach(([label, value, extra]) => {
+          const item = element("div", "summary-item");
+          item.append(element("span", "label", label), element("div", `value ${extra}`, value));
+          summary.appendChild(item);
+        });
+        root.replaceChildren(header, summary);
+      }
+
+      function renderTimeline(trace) {
+        const section = element("section");
+        const head = element("div", "section-head");
+        head.append(element("h2", "", "Execution timeline"), element("span", "count", `${(trace.events || []).length} EVENTS`));
+        const list = element("div", "timeline");
+        (trace.events || []).forEach((event, index) => {
+          const type = event.event_type || "EVENT";
+          const css = type.includes("MCP") || type.includes("SQL") || type.includes("EVIDENCE") ? "tool" : type.includes("VALIDATION") ? "validation" : "";
+          const card = element("article", `event ${css}`);
+          const top = element("div", "event-top");
+          top.append(element("h3", "event-title", labels[type] || type.replaceAll("_", " ").toLowerCase()), element("span", "event-type", `${String(index + 1).padStart(2, "0")} · ${type}`));
+          card.appendChild(top);
+          const payload = { ...event };
+          delete payload.event_type;
+          if (Object.keys(payload).length) {
+            const sql = typeof payload.sql === "string" ? payload.sql : null;
+            if (sql) {
+              card.appendChild(element("pre", "sql", sql.trim()));
+              delete payload.sql;
+            }
+            if (Object.keys(payload).length) card.appendChild(element("pre", "event-data", pretty(payload)));
+          }
+          list.appendChild(card);
+        });
+        if (!trace.events?.length) list.appendChild(element("p", "empty", "This trace has no recorded events."));
+        section.append(head, list);
+        return section;
+      }
+
+      function renderValidation(trace) {
+        const validation = trace.validation || { status: "pending", errors: [] };
+        const status = String(validation.status || "pending").toLowerCase();
+        const panel = element("section", `validation-panel ${status}`);
+        panel.append(element("div", "status " + status, status === "pass" ? "Answer grounded" : status));
+        if (validation.errors?.length) validation.errors.forEach((error) => panel.appendChild(element("p", "", error)));
+        else panel.appendChild(element("p", "", status === "pass" ? "No mismatch found between the answer and SQL results." : "No additional validation details recorded."));
+        return panel;
+      }
+
+      function renderEvidence(trace) {
+        const section = element("section", "side-section");
+        section.append(element("div", "section-head", ""));
+        const head = section.firstChild;
+        head.append(element("h2", "", "SQL evidence"), element("span", "count", `${(trace.evidence || []).length} RECORDS`));
+        if (!trace.evidence?.length) {
+          section.appendChild(element("p", "empty", "No SQL evidence is attached to this trace."));
+          return section;
+        }
+        trace.evidence.forEach((record) => {
+          const article = element("article", "evidence");
+          const metadata = element("div", "evidence-head");
+          metadata.append(element("strong", "", record.evidence_id || "Evidence"), element("span", "", `Tool ${record.tool_call_id || "unknown"} · ${record.row_count ?? 0} rows · ${record.execution_time_ms ?? "?"} ms`));
+          if (record.sql) metadata.appendChild(element("pre", "sql", record.sql));
+          article.appendChild(metadata);
+          const wrap = element("div", "table-wrap");
+          const table = document.createElement("table");
+          const columns = record.columns || [];
+          const thead = document.createElement("thead");
+          const headerRow = document.createElement("tr");
+          columns.forEach((column) => headerRow.appendChild(element("th", "", column)));
+          thead.appendChild(headerRow);
+          const tbody = document.createElement("tbody");
+          (record.result || []).forEach((row) => {
+            const tr = document.createElement("tr");
+            row.forEach((value) => tr.appendChild(element("td", "", cellText(value))));
+            tbody.appendChild(tr);
+          });
+          table.append(thead, tbody);
+          wrap.appendChild(table);
+          article.appendChild(wrap);
+          section.appendChild(article);
+        });
+        return section;
+      }
+
+      function renderToolCalls(trace) {
+        const section = element("section", "side-section");
+        const head = element("div", "section-head");
+        head.append(element("h2", "", "Tool calls"), element("span", "count", `${(trace.tool_calls || []).length} CALLS`));
+        section.appendChild(head);
+        if (!trace.tool_calls?.length) section.appendChild(element("p", "empty", "No tools were called."));
+        (trace.tool_calls || []).forEach((call) => {
+          const article = element("article", "tool-call");
+          article.append(element("div", "tool-name", `${call.server || "MCP"} / ${call.tool || "tool"}`), element("div", "tool-meta", `Tool call ID: ${call.tool_call_id || "not recorded"}`));
+          if (call.payload) article.appendChild(element("pre", "event-data", pretty(call.payload)));
+          section.appendChild(article);
+        });
+        return section;
+      }
+
+      async function load() {
+        try {
+          const response = await fetch(`/traces/${encodeURIComponent(traceId)}`);
+          if (!response.ok) throw new Error(response.status === 404 ? "Trace not found." : `Could not load trace (${response.status}).`);
+          const trace = await response.json();
+          renderSummary(trace);
+          const layout = element("div", "layout");
+          layout.appendChild(renderTimeline(trace));
+          const aside = element("aside");
+          aside.append(renderValidation(trace), renderEvidence(trace), renderToolCalls(trace));
+          layout.appendChild(aside);
+          root.appendChild(layout);
+          document.title = `${trace.trace_id || traceId} | Trace detail`;
+        } catch (error) {
+          root.replaceChildren(element("div", "load-error", error.message));
+        }
+      }
+      load();
+    })();
+  </script>
+</body>
+</html>

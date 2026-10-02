@@ -1,0 +1,18 @@
+{
+  "servers": {
+    "sql": {
+      "command": "python",
+      "args": [
+        "mcp_servers/sql_server.py"
+      ],
+      "env": {}
+    },
+    "git": {
+      "command": "python",
+      "args": [
+        "mcp_servers/git_server.py"
+      ],
+      "env": {}
+    }
+  }
+}
