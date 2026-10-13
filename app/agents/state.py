@@ -13,3 +13,16 @@ class AgentState(TypedDict):
     trace_id: str
     final_answer: str
     validation_status: str
+    iteration: int
+    max_iterations: int
+    started_at: float
+    input_tokens: int
+    output_tokens: int
+    estimated_cost_usd: float
+    planned_sql: str
+    planned_git_tool: str
+    planned_tools: list[str]
+    planned_decision_ids: dict[str, str]
+    observations: list[dict]
+    retry_requested: bool
+    last_error: dict

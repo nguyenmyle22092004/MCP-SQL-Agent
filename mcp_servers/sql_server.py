@@ -15,54 +15,23 @@ from mcp.server.mcpserver import MCPServer
 from mcp.server.stdio import stdio_server
 from sqlalchemy import text
 
-from app.db.database import engine
+from sqlalchemy import create_engine
+
+from app.config import get_readonly_database_url, get_settings
+from app.db.sql_policy import validate_read_only_sql
 from app.tracing.evidence import add_evidence
 
 mcp = MCPServer("sql_server")
-
-ALLOWED_PREFIXES = ("SELECT", "WITH")
-FORBIDDEN_TOKENS = (
-    "INSERT",
-    "UPDATE",
-    "DELETE",
-    "DROP",
-    "ALTER",
-    "TRUNCATE",
-    "CREATE",
-    "GRANT",
-    "REVOKE",
-    "EXEC",
-    "CALL",
-    "MERGE",
-)
-
+settings = get_settings()
+read_engine = create_engine(get_readonly_database_url(settings), pool_pre_ping=True)
 
 def _validate_sql(sql: str) -> str:
-    if not isinstance(sql, str):
-        raise ValueError("SQL must be a string.")
-    cleaned = sql.strip()
-    if not cleaned:
-        raise ValueError("SQL cannot be empty.")
-    if cleaned.endswith(";"):
-        cleaned = cleaned[:-1].rstrip()
-    if ";" in cleaned:
-        raise ValueError("Multiple SQL statements are not allowed.")
-    if "--" in cleaned or "/*" in cleaned or "*/" in cleaned:
-        raise ValueError("Comments are not allowed.")
-    upper = cleaned.upper()
-    if not upper.startswith(ALLOWED_PREFIXES):
-        raise ValueError("Only SELECT and WITH statements are allowed.")
-    for token in FORBIDDEN_TOKENS:
-        if re.search(rf"\b{token}\b", upper):
-            raise ValueError(f"SQL operation '{token}' is not allowed.")
-    if len(cleaned) > 20000:
-        raise ValueError("SQL is too long.")
-    return cleaned
+    return validate_read_only_sql(sql)
 
 
 @mcp.tool()
 def list_tables() -> dict:
-    with engine.connect() as conn:
+    with read_engine.connect() as conn:
         rows = conn.execute(
             text("SELECT table_name FROM information_schema.tables WHERE table_schema = 'public' ORDER BY table_name")
         ).fetchall()
@@ -73,14 +42,14 @@ def list_tables() -> dict:
 def describe_table(table_name: str) -> dict:
     if not re.fullmatch(r"[A-Za-z_][A-Za-z0-9_]*", table_name or ""):
         raise ValueError("Invalid table name.")
-    with engine.connect() as conn:
+    with read_engine.connect() as conn:
         exists = conn.execute(
             text("SELECT EXISTS (SELECT 1 FROM information_schema.tables WHERE table_schema = 'public' AND table_name = :table_name)"),
             {"table_name": table_name},
         ).scalar()
     if not exists:
         raise ValueError(f"Table '{table_name}' does not exist.")
-    with engine.connect() as conn:
+    with read_engine.connect() as conn:
         rows = conn.execute(
             text(
                 "SELECT column_name, data_type FROM information_schema.columns WHERE table_schema = 'public' AND table_name = :table_name ORDER BY ordinal_position"
@@ -96,10 +65,13 @@ def execute_sql(sql: str, trace_id: str | None = None, tool_call_id: str | None 
     start = time.perf_counter()
     trace_id = trace_id or f"trace_{uuid4().hex[:8]}"
     tool_call_id = tool_call_id or f"tool_{uuid4().hex[:8]}"
-    with engine.connect() as conn:
-        result = conn.execute(text(sql))
-        columns = list(result.keys())
-        rows = result.fetchall()
+    with read_engine.connect() as conn:
+        with conn.begin():
+            conn.execute(text("SET TRANSACTION READ ONLY"))
+            conn.execute(text(f"SET LOCAL statement_timeout = '{int(settings.SQL_TOOL_TIMEOUT_SECONDS * 1000)}ms'"))
+            result = conn.execute(text(sql))
+            columns = list(result.keys())
+            rows = result.fetchall()
     trimmed_rows = [list(row) for row in rows[:100]]
     execution_time_ms = int((time.perf_counter() - start) * 1000)
     payload = {

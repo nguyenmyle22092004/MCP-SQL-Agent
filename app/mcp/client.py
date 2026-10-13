@@ -41,9 +41,9 @@ class MCPClient:
             return [tool.model_dump() for tool in result.tools]
         return self._run_request(_list_tools)
 
-    def call_tool(self, name: str, **kwargs):
+    def call_tool(self, name: str, *, timeout_seconds: float | None = None, **kwargs):
         async def _call_tool(session):
-            result = await session.call_tool(name, arguments=kwargs)
+            result = await session.call_tool(name, arguments=kwargs, read_timeout_seconds=timeout_seconds)
             if getattr(result, "isError", getattr(result, "is_error", False)):
                 details = [getattr(item, "text", "") for item in getattr(result, "content", [])]
                 raise RuntimeError("MCP tool call failed: " + " ".join(filter(None, details)))

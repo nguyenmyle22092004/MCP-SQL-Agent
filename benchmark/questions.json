@@ -1,12 +1,13 @@
 [
-  {"id": "Q1", "question": "How many houses have 3 bedrooms?", "expected_tool": "execute_sql"},
-  {"id": "Q2", "question": "What are the prices of the 3-bedroom houses?", "expected_tool": "execute_sql"},
-  {"id": "Q3", "question": "What is the average price of 3-bedroom houses?", "expected_tool": "execute_sql"},
-  {"id": "Q4", "question": "Which city has the highest average house price?", "expected_tool": "execute_sql"},
-  {"id": "Q5", "question": "What is the most expensive house?", "expected_tool": "execute_sql"},
-  {"id": "Q6", "question": "What is the cheapest 4-bedroom house?", "expected_tool": "execute_sql"},
-  {"id": "Q7", "question": "How many houses cost more than $1 million?", "expected_tool": "execute_sql"},
-  {"id": "Q8", "question": "What is the average price per square foot by city?", "expected_tool": "execute_sql"},
-  {"id": "Q9", "question": "How many houses were built after 2015?", "expected_tool": "execute_sql"},
-  {"id": "Q10", "question": "What are the top 5 most expensive houses with at least 4 bedrooms?", "expected_tool": "execute_sql"}
+  {"id": "Q1", "question": "How many houses have 3 bedrooms?", "expected_tool": "execute_sql", "expected_sql_contains": ["COUNT(", "bedrooms = 3"]},
+  {"id": "Q2", "question": "What are the prices of the 3-bedroom houses?", "expected_tool": "execute_sql", "expected_sql_contains": ["price", "bedrooms = 3"]},
+  {"id": "Q3", "question": "What is the average price of 3-bedroom houses?", "expected_tool": "execute_sql", "expected_sql_contains": ["AVG(price)", "bedrooms = 3"]},
+  {"id": "Q4", "question": "Which city has the highest average house price?", "expected_tool": "execute_sql", "expected_sql_contains": ["AVG(price)", "GROUP BY city", "DESC"]},
+  {"id": "Q5", "question": "What is the most expensive house?", "expected_tool": "execute_sql", "expected_sql_contains": ["ORDER BY price DESC", "LIMIT 1"]},
+  {"id": "Q6", "question": "What is the cheapest 4-bedroom house?", "expected_tool": "execute_sql", "expected_sql_contains": ["bedrooms = 4", "ORDER BY price ASC", "LIMIT 1"]},
+  {"id": "Q7", "question": "How many houses cost more than $1 million?", "expected_tool": "execute_sql", "expected_sql_contains": ["COUNT(", "price > 1000000"]},
+  {"id": "Q8", "question": "What is the average price per square foot by city?", "expected_tool": "execute_sql", "expected_sql_contains": ["AVG(price / area_sqft)", "GROUP BY city"]},
+  {"id": "Q9", "question": "How many houses were built after 2015?", "expected_tool": "execute_sql", "expected_sql_contains": ["COUNT(", "year_built > 2015"]},
+  {"id": "Q10", "question": "What are the top 5 most expensive houses with at least 4 bedrooms?", "expected_tool": "execute_sql", "expected_sql_contains": ["bedrooms >= 4", "ORDER BY price DESC", "LIMIT 5"]},
+  {"id": "Q11", "question": "How many 3-bedroom houses are there, and what is the Git repository status?", "expected_tools": ["execute_sql", "git_status"], "expected_sql_contains": ["COUNT(", "bedrooms = 3"]}
 ]

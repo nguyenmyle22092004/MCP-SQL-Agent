@@ -1,0 +1,154 @@
+<!doctype html>
+<html lang="en">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <meta name="theme-color" content="#f2f3ed">
+  <title>Trace dashboard | House Price SQL Agent</title>
+  <style>
+    :root { color-scheme:light; --paper:#f2f3ed; --white:#fffefa; --ink:#202923; --muted:#737d73; --line:#dce1d8; --green:#24563d; --deep:#183f2c; --lime:#d7e778; --red:#a13e31; --red-bg:#fae9e3; --gold:#987126; --gold-bg:#f8efd8; --mono:Consolas,"Cascadia Code",monospace; }
+    * { box-sizing:border-box; }
+    body { margin:0; min-width:320px; color:var(--ink); background:var(--paper); font-family:"Aptos","Segoe UI",sans-serif; }
+    a { color:var(--green); text-underline-offset:3px; }
+    header { display:flex; min-height:62px; align-items:center; justify-content:space-between; padding:0 max(20px,calc((100vw - 1260px)/2)); border-bottom:1px solid var(--line); background:var(--white); }
+    .brand { display:flex; align-items:center; gap:10px; color:var(--ink); text-decoration:none; font:700 13px Georgia,serif; }
+    .mark { display:grid; width:30px; height:30px; place-items:center; border-radius:5px; color:var(--lime); background:var(--deep); font:16px Georgia,serif; }
+    .nav { font-size:12px; }
+    main { width:min(1240px,100%); margin:auto; padding:34px 22px 70px; }
+    .eyebrow { margin:0 0 8px; color:var(--green); font:10px var(--mono); text-transform:uppercase; }
+    h1 { margin:0; font:400 34px/1.1 Georgia,"Times New Roman",serif; }
+    .lede { margin:9px 0 25px; color:var(--muted); font-size:13px; }
+    .metrics { display:grid; grid-template-columns:repeat(4,minmax(0,1fr)); border-top:1px solid var(--line); border-bottom:1px solid var(--line); background:var(--white); }
+    .metric { padding:15px 17px; border-right:1px solid var(--line); }
+    .metric:last-child { border-right:0; }
+    .metric-label { display:block; margin-bottom:7px; color:var(--muted); font:10px var(--mono); text-transform:uppercase; }
+    .metric-value { font:400 24px Georgia,serif; }
+    .toolbar { display:flex; align-items:center; gap:10px; margin:26px 0 13px; }
+    input,select,button { min-height:36px; border:1px solid var(--line); border-radius:4px; background:var(--white); color:var(--ink); font:12px "Aptos","Segoe UI",sans-serif; }
+    input { width:min(440px,100%); padding:0 11px; }
+    select { padding:0 28px 0 10px; }
+    button { padding:0 12px; cursor:pointer; }
+    button:hover { border-color:#91a38f; }
+    .count { margin-left:auto; color:var(--muted); font:10px var(--mono); }
+    .table-shell { overflow:auto; border-top:1px solid var(--line); border-bottom:1px solid var(--line); background:var(--white); }
+    table { width:100%; min-width:800px; border-collapse:collapse; }
+    th,td { padding:12px 13px; border-bottom:1px solid #e8ebe4; text-align:left; vertical-align:top; }
+    th { position:sticky; top:0; color:var(--muted); background:#f3f4ee; font:9px var(--mono); text-transform:uppercase; }
+    td { font-size:12px; }
+    tr:last-child td { border-bottom:0; }
+    .question { max-width:500px; line-height:1.45; }
+    .trace-id { font:10px var(--mono); white-space:nowrap; }
+    .status { display:inline-flex; align-items:center; gap:6px; padding:4px 7px; border-radius:3px; font:9px var(--mono); text-transform:uppercase; white-space:nowrap; }
+    .status::before { width:6px;height:6px;border-radius:50%;background:currentColor;content:""; }
+    .status.pass { color:var(--green);background:#e5efdf; }
+    .status.failed { color:var(--red);background:var(--red-bg); }
+    .status.unsupported,.status.budget_exceeded { color:var(--gold);background:var(--gold-bg); }
+    .status.not_applicable { color:var(--muted);background:#eceee8; }
+    .error-count { color:var(--red); font:11px var(--mono); }
+    .empty { padding:32px 15px; color:var(--muted); text-align:center; font-size:13px; }
+    @media(max-width:760px) { header { padding:0 16px; } main { padding:27px 15px 50px; } h1 { font-size:29px; } .metrics { grid-template-columns:repeat(2,minmax(0,1fr)); } .metric:nth-child(2) { border-right:0; } .metric:nth-child(-n+2) { border-bottom:1px solid var(--line); } .toolbar { flex-wrap:wrap; } .count { width:100%; margin:0; } }
+  </style>
+</head>
+<body>
+  <header>
+    <a class="brand" href="/"><span class="mark" aria-hidden="true">⌂</span><span>House Price SQL Agent</span></a>
+    <a class="nav" href="/">Back to chat</a>
+  </header>
+  <main>
+    <p class="eyebrow">Operations / observability</p>
+    <h1>Trace dashboard</h1>
+    <p class="lede">Inspect agent decisions, tool activity, validation, latency, and errors across recent requests.</p>
+    <section class="metrics" aria-label="Trace metrics">
+      <div class="metric"><span class="metric-label">Recent traces</span><span class="metric-value" id="metric-total">—</span></div>
+      <div class="metric"><span class="metric-label">Validation pass</span><span class="metric-value" id="metric-pass">—</span></div>
+      <div class="metric"><span class="metric-label">Tool calls</span><span class="metric-value" id="metric-tools">—</span></div>
+      <div class="metric"><span class="metric-label">Mean latency</span><span class="metric-value" id="metric-latency">—</span></div>
+    </section>
+    <div class="toolbar">
+      <input id="search" type="search" placeholder="Filter by question or trace ID" aria-label="Filter traces">
+      <select id="status-filter" aria-label="Filter validation status">
+        <option value="all">All statuses</option><option value="pass">Pass</option><option value="failed">Failed</option><option value="unsupported">Unsupported</option><option value="budget_exceeded">Budget exceeded</option><option value="not_applicable">No validation needed</option>
+      </select>
+      <button id="refresh" type="button">Refresh</button>
+      <span class="count" id="count">Loading…</span>
+    </div>
+    <div class="table-shell">
+      <table>
+        <thead><tr><th>Trace</th><th>Question</th><th>Status</th><th>Model</th><th>Tools</th><th>Latency</th><th>Cost est.</th><th>Errors</th></tr></thead>
+        <tbody id="rows"><tr><td colspan="8" class="empty">Loading recent trace files…</td></tr></tbody>
+      </table>
+    </div>
+  </main>
+  <script>
+    (() => {
+      const rows = document.getElementById("rows");
+      const search = document.getElementById("search");
+      const statusFilter = document.getElementById("status-filter");
+      const count = document.getElementById("count");
+      let traces = [];
+      const text = (value) => String(value ?? "");
+
+      function render() {
+        const query = search.value.trim().toLowerCase();
+        const status = statusFilter.value;
+        const filtered = traces.filter((trace) => {
+          const matchesQuery = !query || `${trace.trace_id} ${trace.question}`.toLowerCase().includes(query);
+          return matchesQuery && (status === "all" || trace.validation_status === status);
+        });
+        rows.replaceChildren();
+        if (!filtered.length) {
+          const row = document.createElement("tr");
+          const cell = document.createElement("td");
+          cell.colSpan = 8; cell.className = "empty"; cell.textContent = "No traces match these filters.";
+          row.appendChild(cell); rows.appendChild(row);
+        }
+        filtered.forEach((trace) => {
+          const row = document.createElement("tr");
+          const idCell = document.createElement("td");
+          const link = document.createElement("a");
+          link.className = "trace-id"; link.href = `/traces/${encodeURIComponent(trace.trace_id)}/view`; link.textContent = trace.trace_id;
+          idCell.appendChild(link);
+          const question = document.createElement("td"); question.className = "question"; question.textContent = trace.question || "(empty request)";
+          const statusCell = document.createElement("td");
+          const badge = document.createElement("span"); badge.className = `status ${trace.validation_status}`; badge.textContent = trace.validation_status; statusCell.appendChild(badge);
+          const model = document.createElement("td"); model.textContent = trace.model || "—";
+          const toolCount = document.createElement("td"); toolCount.textContent = text(trace.tool_calls);
+          const latency = document.createElement("td"); latency.textContent = trace.latency_ms == null ? "—" : `${trace.latency_ms} ms`;
+          const cost = document.createElement("td"); cost.textContent = trace.estimated_cost_usd == null ? "—" : `$${Number(trace.estimated_cost_usd).toFixed(4)}`;
+          const errors = document.createElement("td"); errors.className = trace.errors ? "error-count" : ""; errors.textContent = text(trace.errors);
+          row.append(idCell, question, statusCell, model, toolCount, latency, cost, errors);
+          rows.appendChild(row);
+        });
+        count.textContent = `${filtered.length} shown / ${traces.length} loaded`;
+      }
+
+      async function load() {
+        rows.replaceChildren();
+        const loading = document.createElement("tr"); const message = document.createElement("td");
+        message.colSpan = 8; message.className = "empty"; message.textContent = "Loading recent trace files…";
+        loading.appendChild(message); rows.appendChild(loading);
+        try {
+          const response = await fetch("/api/traces?limit=250");
+          if (!response.ok) throw new Error(`Trace API returned ${response.status}`);
+          const data = await response.json(); traces = data.traces || [];
+          const passed = traces.filter((trace) => trace.validation_status === "pass").length;
+          const latencyValues = traces.map((trace) => trace.latency_ms).filter((value) => Number.isFinite(value));
+          document.getElementById("metric-total").textContent = String(traces.length);
+          document.getElementById("metric-pass").textContent = traces.length ? `${Math.round(passed * 100 / traces.length)}%` : "—";
+          document.getElementById("metric-tools").textContent = String(traces.reduce((total, trace) => total + trace.tool_calls, 0));
+          document.getElementById("metric-latency").textContent = latencyValues.length ? `${Math.round(latencyValues.reduce((a,b) => a+b,0) / latencyValues.length)} ms` : "—";
+          render();
+        } catch (error) {
+          rows.replaceChildren(); const row = document.createElement("tr"); const cell = document.createElement("td");
+          cell.colSpan = 8; cell.className = "empty"; cell.textContent = `Could not load traces: ${error.message}`; row.appendChild(cell); rows.appendChild(row);
+          count.textContent = "Unavailable";
+        }
+      }
+      search.addEventListener("input", render);
+      statusFilter.addEventListener("change", render);
+      document.getElementById("refresh").addEventListener("click", load);
+      load();
+    })();
+  </script>
+</body>
+</html>

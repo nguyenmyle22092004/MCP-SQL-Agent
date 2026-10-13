@@ -75,7 +75,7 @@
 <body>
   <header class="top">
     <a class="brand" href="/"><span class="mark" aria-hidden="true">⌂</span><span>House Price SQL Agent</span></a>
-    <a class="back" href="/">Back to chat</a>
+    <nav><a class="back" href="/traces">All traces</a> · <a class="back" href="/">Back to chat</a></nav>
   </header>
   <main>
     <div id="page-content" aria-live="polite"><p class="empty">Loading trace…</p></div>
@@ -98,6 +98,18 @@
         ANSWER_VALIDATION_START: "Answer validation started",
         ANSWER_VALIDATION_END: "Answer validation finished",
         MEMORY_SAVE: "Conversation memory saved",
+        AGENT_DECISION: "Agent decision",
+        POLICY_CHECK: "Policy check",
+        MCP_CALL_END: "MCP tool completed",
+        TOOL_OBSERVATION: "Tool observation returned",
+        AGENT_RETRY_SCHEDULED: "Retry scheduled",
+        AGENT_BUDGET_EXCEEDED: "Agent budget reached",
+        TOOL_EXECUTION_PARALLEL_START: "Independent tools started in parallel",
+        TOOL_EXECUTION_PARALLEL_END: "Parallel tools completed",
+        ANSWER_SYNTHESIS: "Answer synthesized",
+        TRACE_CONTRACT_CHECK: "Trace contract checked",
+        AGENT_RUN_FINISHED: "Agent run finished",
+        AGENT_RUN_FAILED: "Agent run failed",
       };
       const element = (tag, className, text) => {
         const node = document.createElement(tag);
@@ -218,6 +230,21 @@
         return section;
       }
 
+      function renderClaims(trace) {
+        const section = element("section", "side-section");
+        const head = element("div", "section-head");
+        head.append(element("h2", "", "Answer claims"), element("span", "count", `${(trace.claims || []).length} CLAIMS`));
+        section.appendChild(head);
+        if (!trace.claims?.length) section.appendChild(element("p", "empty", "No individual claims were recorded for this answer."));
+        (trace.claims || []).forEach((claim) => {
+          const article = element("article", "tool-call");
+          const status = String(claim.status || "unknown").toLowerCase();
+          article.append(element("div", "tool-name", claim.text || claim.claim || "Claim"), element("div", "tool-meta", `${claim.kind || "claim"} · ${status} · evidence: ${(claim.evidence_ids || []).join(", ") || "none"}`));
+          section.appendChild(article);
+        });
+        return section;
+      }
+
       async function load() {
         try {
           const response = await fetch(`/traces/${encodeURIComponent(traceId)}`);
@@ -228,6 +255,7 @@
           layout.appendChild(renderTimeline(trace));
           const aside = element("aside");
           aside.append(renderValidation(trace), renderEvidence(trace), renderToolCalls(trace));
+                    aside.append(renderValidation(trace), renderClaims(trace), renderEvidence(trace), renderToolCalls(trace));
           layout.appendChild(aside);
           root.appendChild(layout);
           document.title = `${trace.trace_id || traceId} | Trace detail`;

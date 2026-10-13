@@ -13,9 +13,11 @@ def test_root_serves_chat_ui():
     assert 'id="chat-form"' in response.text
 
 
-def test_trace_view_serves_readable_viewer():
+def test_trace_view_serves_readable_viewer(monkeypatch, tmp_path):
     client = TestClient(app)
-    trace_id = "trace_658d99e5"
+    trace_id = "trace_0123456789abcdef"
+    (tmp_path / f"{trace_id}.json").write_text("{}", encoding="utf-8")
+    monkeypatch.setattr("app.api.routes.TRACE_DIR", tmp_path)
 
     response = client.get(f"/traces/{trace_id}/view")
 
@@ -23,6 +25,19 @@ def test_trace_view_serves_readable_viewer():
     assert "text/html" in response.headers["content-type"]
     assert "Execution timeline" in response.text
     assert "SQL evidence" in response.text
+
+
+def test_trace_dashboard_and_api():
+    client = TestClient(app)
+    dashboard = client.get("/traces")
+    data = client.get("/api/traces?limit=5")
+
+    assert dashboard.status_code == 200
+    assert "text/html" in dashboard.headers["content-type"]
+    assert "Trace dashboard" in dashboard.text
+    assert data.status_code == 200
+    assert data.json()["count"] <= 5
+    assert isinstance(data.json()["traces"], list)
 
 
 def test_chat_reports_database_connection_error(monkeypatch):
