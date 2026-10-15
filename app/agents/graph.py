@@ -62,6 +62,7 @@ def run_agent(question: str, user_id: str, conversation_id: str) -> dict:
         "observations": [],
         "retry_requested": False,
         "last_error": {},
+        "decision_action": "skipped",
     }
     workflow = build_workflow(tracer)
     try:

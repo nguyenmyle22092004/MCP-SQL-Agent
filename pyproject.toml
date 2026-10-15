@@ -37,4 +37,4 @@ requires = ["setuptools>=68", "wheel"]
 build-backend = "setuptools.build_meta"
 
 [tool.setuptools]
-packages = ["app", "mcp_servers"]
+packages = ["app", "mcp_servers", "decision_layer", "decision_layer.local"]

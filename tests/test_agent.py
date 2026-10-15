@@ -295,6 +295,55 @@ def test_answer_repair_prompt_and_usage_are_traced_and_budgeted(monkeypatch):
     assert "do not claim a home is suitable" in ANSWER_PROMPT
 
 
+def test_answer_validation_context_excludes_unvalidated_assistant_history(monkeypatch):
+    question = "Show a house."
+    tracer = TraceRecorder(user_id="test-user", conversation_id="test-conv")
+    tool_call_id = "tool-context-validation"
+    sql_result = {
+        "tool": "sql",
+        "columns": ["address", "bedrooms"],
+        "rows": [["7398 Oak St", 6]],
+        "tool_call_id": tool_call_id,
+        "evidence": {
+            "trace_id": tracer.trace_id,
+            "tool_call_id": tool_call_id,
+            "evidence_id": "ev-context-validation",
+        },
+    }
+    state = {
+        "messages": [{"role": "user", "content": question}],
+        "short_term_context": [
+            {"role": "user", "content": "My family has 5 people."},
+            {"role": "assistant", "content": "Earlier I claimed 620000 bedrooms."},
+        ],
+        "long_term_context": [],
+        "observations": [],
+        "tool_results": [sql_result],
+        "final_answer": "",
+        "validation_status": "pending",
+    }
+    seen_context = {}
+
+    monkeypatch.setattr(
+        "app.agents.nodes._synthesize_answer_with_llm",
+        lambda *args, **kwargs: "7398 Oak St has 6 bedrooms.",
+    )
+
+    def capture_validation(question, answer, tool_results, recent_context="", trusted_context=""):
+        seen_context["recent_context"] = recent_context
+        seen_context["trusted_context"] = trusted_context
+        return {"status": "pass", "errors": [], "expected": [6.0], "actual": [6.0], "claims": []}
+
+    monkeypatch.setattr("app.agents.nodes.validate_answer", capture_validation)
+
+    answer_node(state, tracer)
+
+    assert seen_context["recent_context"] == "My family has 5 people."
+    assert "620000" not in seen_context["recent_context"]
+    assert seen_context["trusted_context"] == ""
+    assert state["validation_status"] == "pass"
+
+
 def test_grounding_checks_numeric_values_in_grouped_rows():
     result = validate_answer(
         "Which city has the lowest average house price?",

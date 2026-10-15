@@ -78,6 +78,7 @@ def chat(payload: ChatRequest) -> ChatResponse:
         conversation_id=payload.conversation_id,
         answer=result.get("final_answer", ""),
         validation_status=result.get("validation_status", "pass"),
+        decision_action=result.get("decision_action", "skipped"),
     )
 
 

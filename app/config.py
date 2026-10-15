@@ -12,6 +12,15 @@ class Settings(BaseSettings):
     LLM_PROVIDER: str = "anthropic"
     LLM_MODEL: str = "claude-sonnet-4-5"
     PROMPT_VERSION: str = "sql-planner-v2"
+    DECISION_BACKEND: str = "fake"
+    DECISION_MODEL_PATH: str = "decision_layer/artifacts/local_model.json"
+    DECISION_GAZETTEER_PATH: str = "data/gazetteer.json"
+    DECISION_FALSE_ACCEPT_COST: float = 10.0
+    DECISION_FALSE_REJECT_COST: float = 1.0
+    DECISION_CLARIFICATION_COST: float = 2.0
+    DECISION_WRONG_THRESHOLD: float = 0.5
+    DECISION_ENTITY_MATCH_PROBABILITY: float = 0.02
+    DECISION_ENTITY_MISMATCH_PROBABILITY: float = 0.98
     ANTHROPIC_API_KEY: str = ""
     ANTHROPIC_PROMPT_CACHE: bool = True
     AGENT_MAX_ITERATIONS: int = 3

@@ -1,6 +1,6 @@
 from __future__ import annotations
 
-from typing import TypedDict
+from typing import NotRequired, TypedDict
 
 
 class AgentState(TypedDict):
@@ -26,3 +26,4 @@ class AgentState(TypedDict):
     observations: list[dict]
     retry_requested: bool
     last_error: dict
+    decision_action: NotRequired[str]

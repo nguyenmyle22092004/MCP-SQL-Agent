@@ -107,6 +107,26 @@ Open `/traces` for the recent trace dashboard. Each trace shows decisions, polic
 
 The seed script creates a deterministic dataset with 360 synthetic houses across the requested cities and value ranges.
 
+## Local decision backend
+
+The optional local decision layer uses pure-Python logistic regression and calibration; it adds no package dependencies. `DECISION_BACKEND=fake` remains the default. Set it to `local` only after building a gazetteer cache and training an artifact. Deterministic SQL policy and `validate_answer` remain authoritative: a failed deterministic validation is always rejected, while model load/feature errors return `skipped` and preserve the deterministic result. `openai` and `jev` are accepted configuration names but currently fail closed as unavailable adapters.
+
+Configure a dedicated read-only PostgreSQL role before building a gazetteer. The builder checks that the active role can SELECT but cannot INSERT, UPDATE, or DELETE on `public.house_prices`; the current development `agent` role is not safe for that purpose. The gazetteer is generated from actual distinct city/state/address values and cached locally:
+
+```bash
+python scripts/create_readonly_role.py
+python scripts/build_gazetteer.py
+```
+
+Training data must be labeled JSONL with explicit `split` values (`train`/`test`), `group_id` (or `template_id`/`source_row_id`), `source`, `label` (`wrong`/`correct`), `needs_clarification`, `error_type`, `question`, `answer`, and `tool_results`. Only train rows are used for fitting, grouped CV, calibration, and threshold selection; test rows are held out for evaluation. No labeled JSONL exists in this checkout, so the included `tests/fixtures/decision_labels.jsonl` is a small synthetic smoke fixture only and must not be treated as model-quality evidence.
+
+```bash
+python scripts/train_local_model.py --dataset data/decision_labels.jsonl --gazetteer data/gazetteer.json
+python scripts/evaluate_local_model.py --dataset data/decision_labels.jsonl --gazetteer data/gazetteer.json
+```
+
+For a pipeline smoke test only, pass `--dataset tests/fixtures/decision_labels.jsonl`. The evaluation writes a Markdown report and reports metrics by label source. Install/configure genuine held-out `real` labels before using its verdict operationally. Backend costs, the maximum wrong-probability threshold, and deterministic entity probabilities are configurable with `DECISION_FALSE_ACCEPT_COST`, `DECISION_FALSE_REJECT_COST`, `DECISION_CLARIFICATION_COST`, `DECISION_WRONG_THRESHOLD`, `DECISION_ENTITY_MATCH_PROBABILITY`, and `DECISION_ENTITY_MISMATCH_PROBABILITY`.
+
 ## Security notes
 
 - SQL access is read-only.

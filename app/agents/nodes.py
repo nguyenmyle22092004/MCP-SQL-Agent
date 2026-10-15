@@ -17,6 +17,9 @@ from app.memory.long_term import load_user_memories
 from app.memory.short_term import ensure_conversation, load_recent_messages, save_message
 from app.tracing.tracer import TraceRecorder
 from app.tracing.validator import validate_answer
+from decision_layer.factory import build_backend
+from decision_layer.policy import Action, CostConfig, validate_with_decisions
+from decision_layer.local.gazetteer import load_gazetteer
 
 
 def _is_database_question(question: str) -> bool:
@@ -687,8 +690,9 @@ def answer_node(state: dict[str, Any], tracer: TraceRecorder) -> dict[str, Any]:
             validation = {"status": "failed", "errors": [error], "claims": [{"kind": "provenance", "text": error, "evidence_ids": [], "status": "failed"}]}
         else:
             recent_context = "\n".join(
-                f"{item.get('role', 'user')}: {item.get('content', '')}"
+                item.get("content", "")
                 for item in state.get("short_term_context", [])[-8:]
+                if item.get("role") == "user"
             )
             validation = validate_answer(question, state["final_answer"], [sql_result], recent_context=recent_context)
             tool_errors = [
@@ -754,6 +758,48 @@ def answer_node(state: dict[str, Any], tracer: TraceRecorder) -> dict[str, Any]:
                         reason="answer_validation_failed",
                         rejected_errors=rejected_errors,
                     )
+            try:
+                settings = get_settings()
+                decision_backend = build_backend(settings)
+                try:
+                    gazetteer = load_gazetteer(
+                        settings.DECISION_GAZETTEER_PATH,
+                        build_if_missing=settings.DECISION_BACKEND.strip().lower() == "local",
+                    )
+                except FileNotFoundError:
+                    if settings.DECISION_BACKEND.strip().lower() != "fake":
+                        raise
+                    gazetteer = {"cities": [], "states": [], "city_state": {}, "street_names": []}
+                decision = validate_with_decisions(
+                    question,
+                    state["final_answer"],
+                    [sql_result],
+                    recent_context,
+                    "",
+                    gazetteer,
+                    decision_backend,
+                    CostConfig(
+                        false_accept=settings.DECISION_FALSE_ACCEPT_COST,
+                        false_reject=settings.DECISION_FALSE_REJECT_COST,
+                        clarification=settings.DECISION_CLARIFICATION_COST,
+                        wrong_threshold=settings.DECISION_WRONG_THRESHOLD,
+                    ),
+                    logger=tracer,
+                )
+            except Exception as exc:
+                decision = {
+                    "action": Action.SKIPPED.value,
+                    "decision_status": "skipped",
+                    "decision_error": type(exc).__name__,
+                    "features": {},
+                    "probabilities": {},
+                    "latency_ms": round((time.perf_counter() - decision_started) * 1000, 3),
+                }
+                tracer.add_event("DECISION_LAYER", **decision)
+            if validation["status"] == "failed":
+                decision["action"] = Action.REJECT.value
+                decision["decision_status"] = "deterministic_reject"
+            state["decision_action"] = decision.get("action", Action.SKIPPED.value)
         for claim in validation.get("claims", []):
             tracer.add_claim(claim)
         tracer.set_validation(validation["status"], validation["errors"])

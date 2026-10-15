@@ -12,3 +12,4 @@ class ChatResponse(BaseModel):
     conversation_id: str
     answer: str
     validation_status: str
+    decision_action: str = "skipped"

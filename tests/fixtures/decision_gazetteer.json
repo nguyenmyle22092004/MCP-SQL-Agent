@@ -1,0 +1,17 @@
+{
+  "cities": ["Atlanta", "Austin", "Boston", "Chicago", "Dallas", "Denver", "New York", "Portland", "San Francisco", "Seattle"],
+  "states": ["CA", "CO", "GA", "IL", "MA", "NY", "OR", "TX", "WA"],
+  "city_state": {
+    "Atlanta": "GA",
+    "Austin": "TX",
+    "Boston": "MA",
+    "Chicago": "IL",
+    "Dallas": "TX",
+    "Denver": "CO",
+    "New York": "NY",
+    "Portland": "OR",
+    "San Francisco": "CA",
+    "Seattle": "WA"
+  },
+  "street_names": ["Cedar St", "Elm St", "Hill St", "Lake St", "Main St", "Maple St", "Oak St", "Pine St", "River St", "Sunset St"]
+}

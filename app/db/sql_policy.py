@@ -5,8 +5,18 @@ import re
 from sqlglot import exp, parse
 
 
-BLOCKED_FUNCTIONS = {"set_config", "nextval", "setval", "lo_import", "lo_export"}
-MODIFYING_NODES = (exp.Insert, exp.Update, exp.Delete, exp.Merge, exp.Create, exp.Drop, exp.Alter, exp.Command)
+ALLOWED_FUNCTIONS = {
+    "count", "sum", "avg", "min", "max", "round", "floor", "ceil", "abs",
+    "coalesce", "nullif", "lower", "upper", "trim", "length", "cast", "case",
+    "if", "percentile_cont", "stddev", "variance", "date_trunc", "extract",
+}
+MODIFYING_NODES = (exp.Insert, exp.Update, exp.Delete, exp.Merge, exp.Create, exp.Drop, exp.Alter, exp.Command, exp.Into, exp.Lock)
+
+
+def _function_name(fn: exp.Func) -> str:
+    if isinstance(fn, exp.Anonymous):
+        return fn.name.lower()
+    return fn.sql_name().lower()
 
 
 def validate_read_only_sql(sql: str) -> str:
@@ -39,7 +49,7 @@ def validate_read_only_sql(sql: str) -> str:
     for table in statement.find_all(exp.Table):
         table_name = table.name.lower()
         schema_name = (table.db or "public").lower()
-        if table_name in cte_names:
+        if not table.db and table_name in cte_names:
             continue
         source_tables.append(table_name)
         if table_name != "house_prices" or schema_name != "public":
@@ -47,13 +57,9 @@ def validate_read_only_sql(sql: str) -> str:
     if "house_prices" not in source_tables:
         raise ValueError("Queries must read from public.house_prices.")
     for function in statement.find_all(exp.Func):
-        function_names = {function.sql_name().lower(), str(getattr(function, "name", "")).lower()}
-        blocked_function = next(
-            (name for name in function_names if name.startswith("pg_") or name in BLOCKED_FUNCTIONS),
-            None,
-        )
-        if blocked_function:
-            raise ValueError(f"Function '{blocked_function}' is not allowed.")
+        name = _function_name(function)
+        if name not in ALLOWED_FUNCTIONS:
+            raise ValueError(f"Function '{name}' is not allowed.")
     if not re.match(r"^(SELECT|WITH)\b", cleaned, re.IGNORECASE):
         raise ValueError("Only SELECT or WITH queries are allowed.")
     return cleaned
