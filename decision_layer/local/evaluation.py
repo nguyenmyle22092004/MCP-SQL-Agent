@@ -117,6 +117,14 @@ def _bootstrap_ci(
             if not wrong:
                 continue
             value = sum(y == 1 and not deterministic and p < threshold for y, deterministic, p in zip(sample_labels, sample_rejects, sample_probs)) / wrong
+        elif metric == "auc":
+            value = _auc(sample_labels, sample_probs)
+            if value is None:
+                continue
+        elif metric == "brier":
+            value = _brier(sample_labels, sample_probs)
+            if value is None:
+                continue
         else:
             value = _ece(sample_labels, sample_probs)
             if value is None:
@@ -220,6 +228,10 @@ def evaluate_records(
     report: dict[str, Any] = {
         "test_rows": len(test),
         "train_rows": len(train),
+        "wrong_case_count_by_split": {
+            "train": sum(_binary_label(record) for record in train),
+            "test": sum(_binary_label(record) for record in test),
+        },
         "threshold_chosen_on_train_oof": threshold,
         "train_oof_expected_cost": train_cost,
         "train_threshold_sweep": threshold_sweep,
@@ -247,6 +259,8 @@ def evaluate_records(
             resamples=bootstrap_resamples,
         ),
         "bootstrap_ece_ci_95": _bootstrap_ci(labels, wrong_probabilities, metric="ece", seed=seed + 1, resamples=bootstrap_resamples),
+        "bootstrap_auc_ci_95": _bootstrap_ci(labels, wrong_probabilities, metric="auc", seed=seed + 2, resamples=bootstrap_resamples),
+        "bootstrap_brier_ci_95": _bootstrap_ci(labels, wrong_probabilities, metric="brier", seed=seed + 3, resamples=bootstrap_resamples),
     })
     report["test"]["combined"]["expected_cost"] = (
         false_accept_cost * sum(y == 1 and not pred for y, pred in zip(labels, combined_predictions)) / len(test)
@@ -412,7 +426,14 @@ def render_markdown(report: dict) -> str:
         vals = ["n/a" if row[key] is None else f"{row[key]:.3f}" for key in ("auc", "brier", "ece")]
         lines.append(f"| {source} | {row['count']} | {confusion['true_positive']} | {confusion['false_positive']} | {confusion['true_negative']} | {confusion['false_negative']} | {vals[0]} | {vals[1]} | {vals[2]} |")
     model = report["test"]["model"]
-    lines.extend(["", "## Bootstrap 95% CIs", "", f"- False-accept rate: {model['bootstrap_false_accept_ci_95']}", f"- ECE: {model['bootstrap_ece_ci_95']}", ""])
+    lines.extend([
+        "", "## Bootstrap 95% CIs", "",
+        f"- AUC: {model['bootstrap_auc_ci_95']}",
+        f"- Brier: {model['bootstrap_brier_ci_95']}",
+        f"- ECE: {model['bootstrap_ece_ci_95']}",
+        f"- False-accept rate: {model['bootstrap_false_accept_ci_95']}",
+        f"- Wrong cases by split: {report['wrong_case_count_by_split']}", "",
+    ])
     if report.get("warning"):
         lines.append(f"> Warning: {report['warning']}")
     lines.append(f"\nShuffled-label AUC sanity check: {report['sanity_shuffled_label_auc']}")

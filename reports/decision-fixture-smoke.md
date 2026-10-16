@@ -9,8 +9,8 @@ Train-OOF cost-optimal threshold: 0.10 (train cost 0.0833)
 |---|---:|---:|---:|---:|---:|---:|---:|---:|
 | deterministic | 2 | 0 | 4 | 2 | n/a | n/a | n/a | n/a |
 | rules | 4 | 0 | 4 | 0 | n/a | n/a | n/a | n/a |
-| model | 4 | 0 | 4 | 0 | 1.000 | 0.000 | 0.001 | 0.000 |
-| combined | 4 | 0 | 4 | 0 | n/a | n/a | n/a | n/a |
+| model | 4 | 0 | 4 | 0 | 1.000 | 0.000 | 0.001 | n/a |
+| combined | 4 | 0 | 4 | 0 | n/a | n/a | n/a | 0.000 |
 
 ## Reliability (Model)
 
@@ -146,13 +146,19 @@ Confusion matrices are included for deterministic-only, rule-only, model-only, a
 ## Needs-Clarification Target
 
 Rule baseline confusion: {'true_positive': 3, 'false_positive': 0, 'true_negative': 5, 'false_negative': 0}
-Model AUC/Brier/ECE: 1.0 / 3.7612240021913435e-05 / 0.003308143824626018
+Model AUC/Brier/ECE: 1.0 / 2.5869998752298996e-05 / 0.0028532980659656277
 
+| Source | Count | Rule TP | Rule FP | Rule TN | Rule FN | Model AUC | Model Brier | Model ECE |
+|---|---:|---:|---:|---:|---:|---:|---:|---:|
+| synthetic | 8 | 3 | 0 | 5 | 0 | 1.000 | 0.000 | 0.003 |
 
 ## Bootstrap 95% CIs
 
+- AUC: (1.0, 1.0)
+- Brier: (1.1836875583948485e-08, 1.492662523301604e-05)
+- ECE: (0.00015538514581529516, 0.0027700317962732444)
 - False-accept rate: (0.0, 0.0)
-- ECE: (8.966956420566366e-05, 0.002692102067926639)
+- Wrong cases by split: {'train': 6, 'test': 4}
 
 > Warning: Fewer than 30 wrong test cases; uncertainty is high.
 

@@ -344,6 +344,132 @@ def test_answer_validation_context_excludes_unvalidated_assistant_history(monkey
     assert state["validation_status"] == "pass"
 
 
+def test_rerun_sql_is_bounded_and_revalidated_as_read_only(monkeypatch):
+    from app.db.sql_policy import validate_read_only_sql as real_validate_sql
+
+    tracer = TraceRecorder(user_id="test-user", conversation_id="test-conv")
+    sql = "SELECT COUNT(*) AS count FROM public.house_prices"
+    sql_result = {
+        "tool": "sql", "sql": sql, "columns": ["count"], "rows": [[3]], "row_count": 1,
+        "tool_call_id": "tool-rerun-initial",
+        "evidence": {"trace_id": tracer.trace_id, "tool_call_id": "tool-rerun-initial", "evidence_id": "ev-rerun"},
+    }
+    settings = SimpleNamespace(
+        DECISION_LAYER_ENABLED=True, DECISION_FAIL_CLOSED=False, DECISION_BACKEND="fake",
+        DECISION_GAZETTEER_PATH="unused", DECISION_FALSE_ACCEPT_COST=10,
+        DECISION_FALSE_REJECT_COST=1, DECISION_CLARIFICATION_COST=2, DECISION_WRONG_THRESHOLD=0.5,
+        MCP_TOOL_TIMEOUT_SECONDS=12,
+    )
+    monkeypatch.setattr("app.agents.nodes.get_settings", lambda: settings)
+    monkeypatch.setattr("app.agents.nodes._synthesize_answer_with_llm", lambda *args, **kwargs: "There are 3 matching houses.")
+    monkeypatch.setattr("app.agents.nodes.build_backend", lambda settings: object())
+    monkeypatch.setattr("app.agents.nodes.load_gazetteer", lambda *args, **kwargs: {})
+    monkeypatch.setattr("app.agents.nodes.validate_with_decisions", lambda *args, **kwargs: {"action": "rerun_sql", "decision_status": "ok"})
+    checks = []
+    monkeypatch.setattr("app.agents.nodes.validate_read_only_sql", lambda query: checks.append(query) or real_validate_sql(query))
+    calls = []
+
+    def rerun(query, recorder, user_id, conversation_id, **kwargs):
+        calls.append(query)
+        return [{
+            **sql_result, "sql": query, "tool_call_id": "tool-rerun-result",
+            "evidence": {"trace_id": recorder.trace_id, "tool_call_id": "tool-rerun-result", "evidence_id": "ev-rerun-again"},
+        }]
+
+    monkeypatch.setattr("app.agents.nodes.run_sql_tool", rerun)
+    state = {
+        "messages": [{"role": "user", "content": "How many houses are there?"}],
+        "user_id": "test-user", "conversation_id": "test-conv", "short_term_context": [],
+        "long_term_context": [], "observations": [], "tool_results": [sql_result],
+        "final_answer": "", "validation_status": "pending",
+    }
+
+    answer_node(state, tracer)
+
+    assert len(calls) == 1
+    assert len(checks) == 1
+    assert state["decision_sql_rerun"] is True
+    assert state["validation_status"] == "pass"
+
+
+def test_ask_user_action_never_returns_factual_answer(monkeypatch):
+    tracer = TraceRecorder(user_id="test-user", conversation_id="test-conv")
+    sql_result = {
+        "tool": "sql", "columns": ["count"], "rows": [[3]], "row_count": 1,
+        "tool_call_id": "tool-ask-user",
+        "evidence": {"trace_id": tracer.trace_id, "tool_call_id": "tool-ask-user", "evidence_id": "ev-ask"},
+    }
+    settings = SimpleNamespace(
+        DECISION_LAYER_ENABLED=True, DECISION_FAIL_CLOSED=False, DECISION_BACKEND="fake",
+        DECISION_GAZETTEER_PATH="unused", DECISION_FALSE_ACCEPT_COST=10,
+        DECISION_FALSE_REJECT_COST=1, DECISION_CLARIFICATION_COST=2, DECISION_WRONG_THRESHOLD=0.5,
+    )
+    monkeypatch.setattr("app.agents.nodes.get_settings", lambda: settings)
+    monkeypatch.setattr("app.agents.nodes._synthesize_answer_with_llm", lambda *args, **kwargs: "There are 3 matching houses.")
+    monkeypatch.setattr("app.agents.nodes.build_backend", lambda settings: object())
+    monkeypatch.setattr("app.agents.nodes.load_gazetteer", lambda *args, **kwargs: {})
+    monkeypatch.setattr("app.agents.nodes.validate_with_decisions", lambda *args, **kwargs: {"action": "ask_user", "decision_status": "ok"})
+    state = {
+        "messages": [{"role": "user", "content": "How many houses are there?"}],
+        "user_id": "test-user", "conversation_id": "test-conv", "short_term_context": [],
+        "long_term_context": [], "observations": [], "tool_results": [sql_result],
+        "final_answer": "", "validation_status": "pending",
+    }
+
+    answer_node(state, tracer)
+
+    assert "3" not in state["final_answer"]
+    assert state["final_answer"].startswith("I need a little more detail")
+
+
+def test_enabled_decision_model_cannot_accept_failed_validation_at_zero_risk(monkeypatch):
+    from decision_layer.backend import DecisionAnswer
+    from decision_layer.questions import Choice, Predicate, Score
+
+    tracer = TraceRecorder(user_id="test-user", conversation_id="test-conv")
+    settings = SimpleNamespace(
+        DECISION_LAYER_ENABLED=True, DECISION_FAIL_CLOSED=False, DECISION_BACKEND="fake",
+        DECISION_GAZETTEER_PATH="unused", DECISION_FALSE_ACCEPT_COST=10,
+        DECISION_FALSE_REJECT_COST=1, DECISION_CLARIFICATION_COST=2, DECISION_WRONG_THRESHOLD=0.5,
+    )
+
+    class CertainBackend:
+        def answer(self, question):
+            if isinstance(question, Score):
+                return DecisionAnswer(value=0.0)
+            if isinstance(question, Predicate):
+                return DecisionAnswer(value=0.0)
+            if isinstance(question, Choice):
+                return DecisionAnswer(value="count")
+            return DecisionAnswer(error="unsupported")
+
+    monkeypatch.setattr("app.agents.nodes.get_settings", lambda: settings)
+    monkeypatch.setattr("app.agents.nodes._synthesize_answer_with_llm", lambda *args, **kwargs: "There are 3 matching houses.")
+    monkeypatch.setattr("app.agents.nodes.build_backend", lambda settings: CertainBackend())
+    monkeypatch.setattr("app.agents.nodes.load_gazetteer", lambda *args, **kwargs: {"cities": [], "states": [], "city_state": {}, "street_names": []})
+    monkeypatch.setattr(
+        "app.agents.nodes.validate_answer",
+        lambda *args, **kwargs: {"status": "failed", "errors": ["test rejection"], "claims": []},
+    )
+    state = {
+        "messages": [{"role": "user", "content": "How many houses are there?"}],
+        "user_id": "test-user", "conversation_id": "test-conv", "short_term_context": [],
+        "long_term_context": [], "observations": [],
+        "tool_results": [{
+            "tool": "sql", "columns": ["count"], "rows": [[3]], "sql": "SELECT COUNT(*) FROM house_prices",
+            "tool_call_id": "tool-certain", "evidence": {
+                "trace_id": tracer.trace_id, "tool_call_id": "tool-certain", "evidence_id": "ev-certain",
+            },
+        }],
+        "final_answer": "", "validation_status": "pending",
+    }
+
+    answer_node(state, tracer)
+
+    assert state["validation_status"] == "failed"
+    assert state["decision_action"] == "reject"
+
+
 def test_grounding_checks_numeric_values_in_grouped_rows():
     result = validate_answer(
         "Which city has the lowest average house price?",

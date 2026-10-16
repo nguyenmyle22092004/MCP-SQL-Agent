@@ -13,6 +13,8 @@ class Settings(BaseSettings):
     LLM_MODEL: str = "claude-sonnet-4-5"
     PROMPT_VERSION: str = "sql-planner-v2"
     DECISION_BACKEND: str = "fake"
+    DECISION_LAYER_ENABLED: bool = False
+    DECISION_FAIL_CLOSED: bool = False
     DECISION_MODEL_PATH: str = "decision_layer/artifacts/local_model.json"
     DECISION_GAZETTEER_PATH: str = "data/gazetteer.json"
     DECISION_FALSE_ACCEPT_COST: float = 10.0

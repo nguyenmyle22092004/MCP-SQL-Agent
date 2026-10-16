@@ -17,6 +17,8 @@ class Action(str, Enum):
     REJECT = "reject"
     CLARIFY = "clarify"
     SKIPPED = "skipped"
+    RERUN_SQL = "rerun_sql"
+    ASK_USER = "ask_user"
 
 
 @dataclass(frozen=True)
@@ -131,6 +133,8 @@ def validate_with_decisions(
             raise RuntimeError("Decision backend refused the question_type choice.")
         policy_costs = costs or CostConfig()
         action = choose_action(p_wrong, p_clarification, policy_costs)
+        if action == Action.CLARIFY:
+            action = Action.ASK_USER
         result = {
             **deterministic,
             "action": action.value,
@@ -152,6 +156,7 @@ def validate_with_decisions(
             "decision_error": type(exc).__name__,
             "features": _safe_feature_summary(features),
             "probabilities": {},
+            # Include feature extraction and every backend attempt in skipped latency.
             "latency_ms": round((perf_counter() - started) * 1000, 3),
         }
 

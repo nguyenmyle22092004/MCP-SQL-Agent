@@ -180,6 +180,42 @@ def test_local_backend_missing_artifact_causes_wrapper_skip():
     assert decision["status"] == deterministic["status"]
 
 
+def test_backend_timeout_is_skipped_and_preserves_deterministic_result():
+    class TimeoutBackend:
+        def answer(self, question):
+            raise TimeoutError("decision backend timeout")
+
+    answer = "100 Oak St, Dallas, TX costs $300,000 with 3 bedrooms."
+    deterministic = validate_answer("Show this Dallas house.", answer, _result())
+    decision = validate_with_decisions(
+        "Show this Dallas house.", answer, _result(), "", "", GAZETTEER, TimeoutBackend()
+    )
+
+    assert decision["decision_status"] == "skipped"
+    assert decision["action"] == Action.SKIPPED.value
+    assert decision["status"] == deterministic["status"]
+    assert decision["errors"] == deterministic["errors"]
+
+
+def test_skipped_latency_covers_backend_failure(monkeypatch):
+    from decision_layer import policy
+
+    ticks = iter((10.0, 10.75))
+    monkeypatch.setattr(policy, "perf_counter", lambda: next(ticks))
+
+    class TimeoutBackend:
+        def answer(self, question):
+            raise TimeoutError("backend deadline")
+
+    decision = validate_with_decisions(
+        "Show this Dallas house.", "100 Oak St, Dallas, TX costs $300,000 with 3 bedrooms.",
+        _result(), "", "", GAZETTEER, TimeoutBackend(),
+    )
+
+    assert decision["decision_status"] == "skipped"
+    assert decision["latency_ms"] == 750.0
+
+
 def test_fake_backend_operates_without_gazetteer_cache_or_database():
     from decision_layer.backend import FakeBackend
 
@@ -223,7 +259,37 @@ def test_policy_falls_back_from_score_to_answer_wrong_predicate():
     assert decision["action"] == Action.ACCEPT.value
 
 
+def test_policy_ask_user_action_is_distinct_from_accept():
+    class ClarificationBackend:
+        def answer(self, question):
+            if isinstance(question, Score):
+                return DecisionAnswer(value=0.3)
+            if isinstance(question, Predicate):
+                return DecisionAnswer(value=question.name == "needs_clarification")
+            if isinstance(question, Choice):
+                return DecisionAnswer(value="lookup")
+            return DecisionAnswer(error="unsupported")
+
+    decision = validate_with_decisions(
+        "Find a nice house.", "100 Oak St, Dallas, TX costs $300,000 with 3 bedrooms.",
+        _result(), "", "", GAZETTEER, ClarificationBackend(),
+        CostConfig(clarification=0.0),
+    )
+
+    assert decision["action"] == Action.ASK_USER.value
+
+
 def test_deterministic_failure_can_never_be_accepted():
+    class AlwaysCertainBackend:
+        def answer(self, question):
+            if isinstance(question, Score):
+                return DecisionAnswer(value=0.0)
+            if isinstance(question, Predicate):
+                return DecisionAnswer(value=0.0)
+            if isinstance(question, Choice):
+                return DecisionAnswer(value="lookup")
+            return DecisionAnswer(error="unsupported")
+
     decision = validate_with_decisions(
         "Show this Dallas house.",
         "100 Oak St, Dallas, TX costs $999,999.",
@@ -231,7 +297,7 @@ def test_deterministic_failure_can_never_be_accepted():
         "",
         "",
         GAZETTEER,
-        LocalBackend("missing-artifact.json"),
+        AlwaysCertainBackend(),
     )
 
     assert decision["status"] == "failed"
@@ -336,6 +402,8 @@ def test_default_backend_setting_is_fake():
 
     assert settings.DECISION_BACKEND == "fake"
     assert isinstance(build_backend(settings), FakeBackend)
+    assert settings.DECISION_LAYER_ENABLED is False
+    assert settings.DECISION_FAIL_CLOSED is False
 
 
 def test_local_backend_score_question_raises_clear_error():

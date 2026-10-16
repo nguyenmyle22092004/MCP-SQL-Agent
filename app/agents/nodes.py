@@ -758,8 +758,10 @@ def answer_node(state: dict[str, Any], tracer: TraceRecorder) -> dict[str, Any]:
                         reason="answer_validation_failed",
                         rejected_errors=rejected_errors,
                     )
-            try:
-                settings = get_settings()
+            settings = get_settings()
+            decision_started = time.perf_counter()
+            if settings.DECISION_LAYER_ENABLED:
+              try:
                 decision_backend = build_backend(settings)
                 try:
                     gazetteer = load_gazetteer(
@@ -786,7 +788,7 @@ def answer_node(state: dict[str, Any], tracer: TraceRecorder) -> dict[str, Any]:
                     ),
                     logger=tracer,
                 )
-            except Exception as exc:
+              except Exception as exc:
                 decision = {
                     "action": Action.SKIPPED.value,
                     "decision_status": "skipped",
@@ -796,10 +798,38 @@ def answer_node(state: dict[str, Any], tracer: TraceRecorder) -> dict[str, Any]:
                     "latency_ms": round((time.perf_counter() - decision_started) * 1000, 3),
                 }
                 tracer.add_event("DECISION_LAYER", **decision)
-            if validation["status"] == "failed":
-                decision["action"] = Action.REJECT.value
-                decision["decision_status"] = "deterministic_reject"
-            state["decision_action"] = decision.get("action", Action.SKIPPED.value)
+              if validation["status"] == "failed":
+                  decision["action"] = Action.REJECT.value
+                  decision["decision_status"] = "deterministic_reject"
+              if decision.get("decision_status") == "skipped" and settings.DECISION_FAIL_CLOSED:
+                  decision["action"] = Action.REJECT.value
+              state["decision_action"] = decision.get("action", Action.SKIPPED.value)
+              if decision.get("action") == Action.ASK_USER.value:
+                  state["final_answer"] = "I need a little more detail to answer that. What would you like me to clarify?"
+                  validation = {"status": "pass", "errors": [], "claims": []}
+              elif decision.get("action") == Action.RERUN_SQL.value and not state.get("decision_sql_rerun"):
+                  state["decision_sql_rerun"] = True
+                  try:
+                      safe_sql = validate_read_only_sql(sql_result.get("sql", ""))
+                      rerun_rows = run_sql_tool(
+                          safe_sql, tracer, state.get("user_id", ""), state.get("conversation_id", ""),
+                          timeout_seconds=settings.MCP_TOOL_TIMEOUT_SECONDS,
+                      )
+                      if not rerun_rows or rerun_rows[0].get("error"):
+                          raise RuntimeError("SQL rerun failed")
+                      rerun = dict(rerun_rows[0])
+                      rerun["tool"] = "sql"
+                      state.setdefault("tool_results", []).append(rerun)
+                      sql_result = rerun
+                      rerun_answer = _format_grounded_sql_answer(question, rerun)
+                      validation = validate_answer(question, rerun_answer, [rerun], recent_context=recent_context)
+                      if validation["status"] == "pass":
+                          state["final_answer"] = rerun_answer
+                  except Exception:
+                      pass
+              if validation["status"] == "failed":
+                  decision["action"] = Action.REJECT.value
+                  decision["decision_status"] = "deterministic_reject"
         for claim in validation.get("claims", []):
             tracer.add_claim(claim)
         tracer.set_validation(validation["status"], validation["errors"])
